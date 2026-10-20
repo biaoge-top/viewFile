@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件预览工具</title>
+    <!-- 引入Element-UI样式 -->
+    <link rel="stylesheet" href="./style/css/element-ui.css">
+    <!-- 自定义样式 -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f7fa;
+            color: #303133;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #303133;
+        }
+
+        .input-area {
+            margin-bottom: 20px;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .input-row .el-input {
+            flex: 1;
+        }
+
+        .drag-area {
+            border: 2px dashed #d9d9d9;
+            border-radius: 4px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .drag-area:hover {
+            border-color: #409eff;
+        }
+
+        .drag-area.drag-over {
+            border-color: #409eff;
+            background-color: #ecf5ff;
+        }
+
+        .preview-area {
+            min-height: 500px;
+            border: 1px solid #ebeef5;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        /* PDF预览样式 */
+        .pdf-preview {
+            width: 100%;
+            min-height: 500px;
+            background-color: #f5f5f5;
+        }
+
+        .pdf-container {
+            width: 100%;
+            padding: 20px;
+        }
+
+        .pdf-container canvas {
+            display: block;
+            margin: 0 auto 20px;
+            max-width: 100%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            background-color: white;
+        }
+
+        /* Office文档预览样式 */
+        .office-preview {
+            width: 100%;
+            height: 100vh;
+        }
+
+        .office-preview iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* 图片预览样式 */
+        .image-preview {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .image-preview img {
+            max-width: 100%;
+            max-height: 600px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 视频预览样式 */
+        .video-preview {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .video-preview video {
+            max-width: 100%;
+            max-height: 600px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 音频预览样式 */
+        .audio-preview {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .audio-preview audio {
+            width: 100%;
+            max-width: 600px;
+        }
+
+        /* 音频可视化 */
+        .audio-visualizer {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 5px;
+            margin: 0 0 15px 0;
+            height: 100px;
+        }
+
+        .audio-bar {
+            width: 8px;
+            background-color: #409eff;
+            border-radius: 4px;
+            animation: audio-wave 1s infinite ease-in-out;
+        }
+
+        .audio-bar:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+
+        .audio-bar:nth-child(3) {
+            animation-delay: 0.2s;
+        }
+
+        .audio-bar:nth-child(4) {
+            animation-delay: 0.3s;
+        }
+
+        .audio-bar:nth-child(5) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes audio-wave {
+            0%, 100% {
+                height: 10px;
+            }
+            50% {
+                height: 50px;
+            }
+        }
+
+        /* 文本预览样式 */
+        .text-preview {
+            padding: 20px;
+            height: 600px;
+            overflow: auto;
+            background-color: #f5f5f5;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* 加载状态 */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 500px;
+            font-size: 16px;
+            color: #409eff;
+        }
+
+        /* 加载文字动画 */
+        .loading-text {
+            position: relative;
+            display: inline-block;
+        }
+
+        .loading-text::after {
+            content: '';
+            animation: loading-dots 1.5s infinite;
+        }
+
+        @keyframes loading-dots {
+            0% { content: ''; }
+            25% { content: '.'; }
+            50% { content: '..'; }
+            75% { content: '...'; }
+            100% { content: ''; }
+        }
+
+        /* 错误提示 */
+        .error-message {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #fef0f0;
+            color: #f56c6c;
+            border: 1px solid #fbc4c4;
+            border-radius: 4px;
+        }
+
+        /* 文件信息 */
+        .file-info {
+            margin: 10px 0;
+        }
+
+        /* 全屏显示样式 */
+        .fullscreen-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            max-width: none;
+            margin: 0;
+            padding: 0;
+            border-radius: 0;
+            box-shadow: none;
+        }
+
+        .fullscreen-preview {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            min-height: 100vh;
+            border: none;
+            overflow-y: auto;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .input-row {
+                flex-direction: column;
+            }
+
+            .drag-area {
+                padding: 20px 10px;
+            }
+
+            .preview-area {
+                min-height: 400px;
+            }
+
+            .office-preview {
+                height: 100vh;
+            }
+
+            .loading {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="container" :class="{ 'fullscreen-container': fullscreen }">
+            <!-- 错误提示 -->
+            <div v-if="error && !fullscreen" class="error-message">
+                <el-alert :title="error" type="error" :closable="false" show-icon></el-alert>
+            </div>
+            
+            <!-- 文件信息 -->
+            <div v-if="selectedFileName && !fullscreen" class="file-info">
+                <el-tag type="success">已选择文件: {{ selectedFileName }}</el-tag>
+            </div>
+            
+            <!-- 输入区域 -->
+            <div v-if="!fullscreen" class="input-area">
+                <div class="input-row">
+                    <el-input
+                        v-model="fileUrl"
+                        placeholder="请输入文件URL"
+                        clearable
+                        @clear="reset"
+                    ></el-input>
+                    <el-button type="primary" @click="preview">预览</el-button>
+                    <el-button @click="reset">重置</el-button>
+                </div>
+            </div>
+            
+            <!-- 预览区域 -->
+            <div class="preview-area" :class="{ 'fullscreen-preview': fullscreen }">
+                <!-- 加载状态 -->
+                <div v-if="loading" class="loading">
+                    <el-icon class="is-loading"><loading></loading></el-icon>
+                    <span style="margin-left: 10px;">
+                        <span class="loading-text">{{ loadingText }}</span>
+                    </span>
+                </div>
+                
+                <!-- PDF预览 -->
+                <div v-else-if="fileType === 'application/pdf'" class="pdf-preview">
+                    <div class="pdf-container" ref="pdfContainer"></div>
+                </div>
+                
+                <!-- Office文档预览 -->
+                <div v-else-if="isOffice" class="office-preview">
+                    <iframe 
+                        :src="officePreviewUrl" 
+                        @error="handleOfficeError"
+                    ></iframe>
+                </div>
+                
+                <!-- 图片预览 -->
+                <div v-else-if="isImage" class="image-preview">
+                    <img :src="fileUrl" alt="图片预览">
+                </div>
+                
+                <!-- 视频预览 -->
+                <div v-else-if="isVideo" class="video-preview">
+                    <video :src="fileUrl" controls>您的浏览器不支持视频播放</video>
+                </div>
+                
+                <!-- 音频预览 -->
+                <div v-else-if="isAudio" class="audio-preview">
+                    <div class="audio-visualizer">
+                        <div class="audio-bar"></div>
+                        <div class="audio-bar"></div>
+                        <div class="audio-bar"></div>
+                        <div class="audio-bar"></div>
+                        <div class="audio-bar"></div>
+                    </div>
+                    <audio :src="fileUrl" controls>您的浏览器不支持音频播放</audio>
+                </div>
+                
+                <!-- 文本预览 -->
+                <div v-else-if="isText" class="text-preview">
+                    <pre>{{ textContent }}</pre>
+                </div>
+                
+                <!-- 不支持的文件类型 -->
+                <div v-else-if="fileUrl" class="loading">
+                    <el-alert
+                        title="不支持的文件类型"
+                        type="warning"
+                        :closable="false"
+                        show-icon
+                    >
+                        <template slot="default">
+                            <p>当前文件类型不支持预览</p>
+                            <p>您可以：<a :href="fileUrl" target="_blank" rel="noopener noreferrer">直接下载文件</a></p>
+                        </template>
+                    </el-alert>
+                </div>
+                
+                <!-- 初始状态 -->
+                <div v-else class="loading">
+                    <el-empty description="请输入文件URL或拖拽文件"></el-empty>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入Vue -->
+    <script src="./style/js/vue.min.js"></script>
+    <!-- 引入Element-UI -->
+    <script src="./style/js/element-ui.js"></script>
+    <!-- 引入pdf.js -->
+    <script src="./style/pdf/pdf.min.js"></script>
+    <!-- 设置pdf.js worker路径 -->
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = './style/pdf/pdf.worker.min.js';
+    </script>
+
+    <script>
+        // 注册Element-UI组件
+        Vue.use(ELEMENT);
+
+        // 创建Vue实例
+        new Vue({
+            el: '#app',
+            data: {
+                fileUrl: '',
+                fileType: '',
+                selectedFileName: '',
+                loading: false,
+                loadingText: '加载中...',
+                error: '',
+                isDragging: false,
+                textContent: '',
+                blobUrls: [],
+                officeLoadCount: 0,
+                maxOfficeLoadAttempts: 10,
+                fullscreen: false
+            },
+            created() {
+                // 优先识别地址栏URL参数
+                this.getUrlFromQueryString();
+            },
+            computed: {
+                isOffice() {
+                    return ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 
+                            'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                            'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'].includes(this.fileType);
+                },
+                isImage() {
+                    return this.fileType.startsWith('image/');
+                },
+                isVideo() {
+                    return this.fileType.startsWith('video/');
+                },
+                isAudio() {
+                    return this.fileType.startsWith('audio/');
+                },
+                isText() {
+                    return ['text/plain', 'text/markdown', 'text/html', 'application/rtf', 
+                            'text/csv', 'text/tab-separated-values', 'text/x-shellscript', 
+                            'text/xml', 'application/json', 'text/yaml', 'text/css', 
+                            'application/javascript'].includes(this.fileType);
+                },
+                officePreviewUrl() {
+                    return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(this.fileUrl)}`;
+                }
+            },
+            methods: {
+                // 从地址栏获取URL参数
+                getUrlFromQueryString() {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const url = urlParams.get('url');
+                    if (url) {
+                        this.fileUrl = url;
+                        this.preview();
+                    }
+                    
+                    // 检查是否需要全屏显示
+                    const view = urlParams.get('view');
+                    if (view === 'wp') {
+                        this.fullscreen = true;
+                    }
+                },
+                // 提取文件扩展名（处理各种URL格式）
+                getFileExtension(url) {
+                    // 移除查询参数和哈希值
+                    const cleanUrl = url.split('?')[0].split('#')[0];
+                    // 提取最后一个点后的部分作为扩展名
+                    const parts = cleanUrl.split('.');
+                    if (parts.length > 1) {
+                        return parts.pop().toLowerCase();
+                    }
+                    return '';
+                },
+                // 预览文件
+                preview() {
+                    if (!this.fileUrl) {
+                        this.error = '请输入文件URL';
+                        return;
+                    }
+
+                    this.loading = true;
+                    this.loadingText = '检测文件类型...';
+                    this.error = '';
+
+                    // 检测文件类型
+                    this.detectFileType()
+                        .then(() => {
+                            this.loadingText = `加载${this.getFileTypeName()}...`;
+                            
+                            // 根据文件类型执行不同的预览操作
+                            if (this.fileType === 'application/pdf') {
+                                // PDF预览需要先隐藏loading，显示pdf-container元素
+                                this.loading = false;
+                                this.$nextTick(() => {
+                                    this.previewPdf();
+                                });
+                            } else if (this.isText) {
+                                this.previewText();
+                            } else {
+                                this.loading = false;
+                            }
+                        })
+                        .catch(err => {
+                            this.error = `预览失败: ${err.message}`;
+                            this.loading = false;
+                        });
+                },
+
+                // 检测文件类型
+                detectFileType() {
+                    return new Promise((resolve, reject) => {
+                        // 优先检查URL扩展名
+                        const urlExt = this.getFileExtension(this.fileUrl);
+                        if (urlExt) {
+                            console.log('URL包含明确扩展名，直接使用扩展名猜测类型:', urlExt);
+                            this.fileType = this.getMimeTypeFromExt(urlExt);
+                            console.log('根据扩展名确定的文件类型:', this.fileType);
+                            resolve();
+                            return;
+                        }
+
+                        // 设置超时，防止请求卡住
+                        const timeoutId = setTimeout(() => {
+                            console.error('检测文件类型超时');
+                            // 超时后尝试从URL扩展名猜测类型
+                            const ext = this.getFileExtension(this.fileUrl);
+                            this.fileType = this.getMimeTypeFromExt(ext);
+                            resolve();
+                        }, 5000); // 5秒超时
+
+                        try {
+                            
+
+                            // 发送HEAD请求获取文件类型
+                            fetch(this.fileUrl, { 
+                                method: 'HEAD',
+                                mode: 'cors',
+                                cache: 'no-cache'
+                            })
+                                .then(response => {
+                                    clearTimeout(timeoutId);
+                                    let contentType = response.headers.get('content-type') || '';
+                                    console.log('服务器返回的Content-Type:', contentType);
+                                    
+                                    // 增强Content-Type有效性检查
+                                    // 如果Content-Type无效、为通用类型，或者与URL扩展名明显不匹配，回退到扩展名猜测
+                                    const urlExt = this.getFileExtension(this.fileUrl);
+                                    const guessedType = this.getMimeTypeFromExt(urlExt);
+                                    
+                                    if (!contentType || 
+                                        contentType === 'application/octet-stream' || 
+                                        contentType === 'text/plain' || 
+                                        contentType === 'application/x-www-form-urlencoded') {
+                                        console.log('Content-Type无效，尝试从扩展名猜测类型:', contentType, 'URL扩展名:', urlExt, '猜测类型:', guessedType);
+                                        contentType = guessedType;
+                                    }
+                                    
+                                    this.fileType = contentType;
+                                    console.log('最终确定的文件类型:', this.fileType);
+                                    resolve();
+                                })
+                                .catch(err => {
+                                    clearTimeout(timeoutId);
+                                    console.error('HEAD请求失败，尝试从扩展名猜测类型:', err);
+                                    // 如果HEAD请求失败，从URL扩展名猜测类型
+                                    const ext = this.getFileExtension(this.fileUrl);
+                                    this.fileType = this.getMimeTypeFromExt(ext);
+                                    resolve();
+                                });
+                        } catch (err) {
+                            clearTimeout(timeoutId);
+                            console.error('检测文件类型异常:', err);
+                            // 异常情况下，从URL扩展名猜测类型
+                            const ext = this.getFileExtension(this.fileUrl);
+                            this.fileType = this.getMimeTypeFromExt(ext);
+                            resolve();
+                        }
+                    });
+                },
+                
+                // 根据扩展名获取MIME类型
+                getMimeTypeFromExt(ext) {
+                    const mimeTypes = {
+                        // PDF文件
+                        'pdf': 'application/pdf',
+                        
+                        // Office文档
+                        'doc': 'application/msword',
+                        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'xls': 'application/vnd.ms-excel',
+                        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        'ppt': 'application/vnd.ms-powerpoint',
+                        'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                        
+                        // 图片文件
+                        'jpg': 'image/jpeg',
+                        'jpeg': 'image/jpeg',
+                        'png': 'image/png',
+                        'gif': 'image/gif',
+                        'svg': 'image/svg+xml',
+                        'webp': 'image/webp',
+                        'tiff': 'image/tiff',
+                        'bmp': 'image/bmp',
+                        'psd': 'image/vnd.adobe.photoshop',
+                        
+                        // 视频文件
+                        'mp4': 'video/mp4',
+                        'mkv': 'video/x-matroska',
+                        'avi': 'video/x-msvideo',
+                        'flv': 'video/x-flv',
+                        'mov': 'video/quicktime',
+                        'wmv': 'video/x-ms-wmv',
+                        'webm': 'video/webm',
+                        'ogv': 'video/ogg',
+                        
+                        // 音频文件
+                        'mp3': 'audio/mpeg',
+                        'wav': 'audio/wav',
+                        'ogg': 'audio/ogg',
+                        'aac': 'audio/aac',
+                        'm4a': 'audio/mp4',
+                        'flac': 'audio/flac',
+                        'wma': 'audio/x-ms-wma',
+                        
+                        // 文本文件
+                        'txt': 'text/plain',
+                        'md': 'text/markdown',
+                        'html': 'text/html',
+                        'rtf': 'application/rtf',
+                        'csv': 'text/csv',
+                        'tsv': 'text/tab-separated-values',
+                        'sh': 'text/x-shellscript',
+                        'bat': 'text/plain',
+                        'ps1': 'text/plain',
+                        'sql': 'text/plain',
+                        'xml': 'text/xml',
+                        'json': 'application/json',
+                        'yaml': 'text/yaml',
+                        'yml': 'text/yaml',
+                        'css': 'text/css',
+                        'js': 'application/javascript'
+                    };
+                    return mimeTypes[ext] || 'application/octet-stream';
+                },
+
+                // 获取文件类型名称
+                getFileTypeName() {
+                    const typeNames = {
+                        // PDF文件
+                        'application/pdf': 'PDF文件',
+                        
+                        // Office文档
+                        'application/msword': 'Word文档',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word文档',
+                        'application/vnd.ms-excel': 'Excel文档',
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'Excel文档',
+                        'application/vnd.ms-powerpoint': 'PowerPoint文档',
+                        'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PowerPoint文档',
+                        
+                        // 图片文件
+                        'image/jpeg': '图片',
+                        'image/png': '图片',
+                        'image/gif': '图片',
+                        'image/svg+xml': '图片',
+                        'image/webp': '图片',
+                        'image/tiff': '图片',
+                        'image/bmp': '图片',
+                        'image/vnd.adobe.photoshop': '图片',
+                        
+                        // 视频文件
+                        'video/mp4': '视频',
+                        'video/x-matroska': '视频',
+                        'video/x-msvideo': '视频',
+                        'video/x-flv': '视频',
+                        'video/quicktime': '视频',
+                        'video/x-ms-wmv': '视频',
+                        'video/webm': '视频',
+                        'video/ogg': '视频',
+                        
+                        // 音频文件
+                        'audio/mpeg': '音频',
+                        'audio/wav': '音频',
+                        'audio/ogg': '音频',
+                        'audio/aac': '音频',
+                        'audio/mp4': '音频',
+                        'audio/flac': '音频',
+                        'audio/x-ms-wma': '音频',
+                        
+                        // 文本文件
+                        'text/plain': '文本',
+                        'text/markdown': '文本',
+                        'text/html': '文本',
+                        'application/rtf': '文本',
+                        'text/csv': '文本',
+                        'text/tab-separated-values': '文本',
+                        'text/x-shellscript': '文本',
+                        'text/xml': '文本',
+                        'application/json': '文本',
+                        'text/yaml': '文本',
+                        'text/css': '文本',
+                        'application/javascript': '文本'
+                    };
+                    return typeNames[this.fileType] || '文件';
+                },
+
+                // 预览PDF
+                previewPdf() {
+                    try {
+                        this.$nextTick(() => {
+                            // 获取PDF容器
+                            const container = this.$el.querySelector('.pdf-container');
+                            if (!container) {
+                                this.error = 'PDF容器未找到';
+                                this.loading = false;
+                                console.error('PDF容器未找到，DOM结构:', this.$el.innerHTML);
+                                return;
+                            }
+
+                            // 清空容器
+                            container.innerHTML = '';
+
+                            // 加载PDF
+                            console.log('开始加载PDF:', this.fileUrl);
+                            const loadingTask = pdfjsLib.getDocument({
+                                url: this.fileUrl
+                            });
+                            loadingTask.promise.then(
+                                pdf => {
+                                    console.log('PDF加载成功，共', pdf.numPages, '页');
+                                    
+                                    // 渲染所有页面
+                                    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                                        this.renderPdfPage(pdf, pageNum, container);
+                                    }
+                                    
+                                    this.loading = false;
+                                },
+                                error => {
+                                    console.error('PDF加载失败:', error);
+                                    this.error = `PDF加载失败: ${error.message}`;
+                                    this.loading = false;
+                                }
+                            );
+                        });
+                    } catch (error) {
+                        console.error('PDF预览异常:', error);
+                        this.error = `PDF预览异常: ${error.message}`;
+                        this.loading = false;
+                    }
+                },
+
+                // 渲染PDF页面
+                renderPdfPage(pdf, pageNum, container) {
+                    pdf.getPage(pageNum).then(page => {
+                        // 设置缩放比例
+                        const scale = 1.5;
+                        const viewport = page.getViewport({ scale });
+
+                        // 创建canvas元素
+                        const canvas = document.createElement('canvas');
+                        container.appendChild(canvas);
+
+                        // 设置canvas尺寸
+                        const context = canvas.getContext('2d');
+                        canvas.height = viewport.height;
+                        canvas.width = viewport.width;
+
+                        // 渲染页面
+                        const renderContext = {
+                            canvasContext: context,
+                            viewport: viewport
+                        };
+                        
+                        page.render(renderContext).promise.then(() => {
+                            console.log(`PDF页面 ${pageNum} 渲染完成`);
+                        });
+                    });
+                },
+
+                // 预览文本
+                previewText() {
+                    fetch(this.fileUrl)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP错误: ${response.status}`);
+                            }
+                            return response.text();
+                        })
+                        .then(text => {
+                            this.textContent = text;
+                            this.loading = false;
+                        })
+                        .catch(err => {
+                            this.error = `文本加载失败: ${err.message}`;
+                            this.loading = false;
+                        });
+                },
+
+                // 处理拖拽文件
+                handleDrop(event) {
+                    this.isDragging = false;
+                    
+                    const files = event.dataTransfer.files;
+                    if (files.length === 0) return;
+                    
+                    const file = files[0];
+                    this.selectedFileName = file.name;
+                    this.loading = true;
+                    this.loadingText = '处理文件...';
+                    
+                    // 创建blob URL
+                    const blobUrl = URL.createObjectURL(file);
+                    this.blobUrls.push(blobUrl);
+                    this.fileUrl = blobUrl;
+                    
+                    // 设置文件类型
+                    this.fileType = file.type;
+                    
+                    // 开始预览
+                    if (this.fileType === 'application/pdf') {
+                        this.previewPdf();
+                    } else if (this.isText) {
+                        this.previewText();
+                    } else {
+                        this.loading = false;
+                    }
+                },
+
+                // 处理Office文档加载错误
+                handleOfficeError() {
+                    this.officeLoadCount++;
+                    if (this.officeLoadCount < this.maxOfficeLoadAttempts) {
+                        console.log(`Office文档加载失败，重试第${this.officeLoadCount}次...`);
+                        // 重新加载iframe
+                        const iframe = document.querySelector('.office-preview iframe');
+                        if (iframe) {
+                            iframe.src = this.officePreviewUrl;
+                        }
+                    } else {
+                        this.error = `Office文档加载失败，已尝试${this.maxOfficeLoadAttempts}次`;
+                        this.loading = false;
+                    }
+                },
+
+                // 重置
+                reset() {
+                    // 释放所有blob URLs
+                    this.blobUrls.forEach(url => {
+                        URL.revokeObjectURL(url);
+                    });
+                    
+                    // 重置所有状态
+                    this.fileUrl = '';
+                    this.fileType = '';
+                    this.selectedFileName = '';
+                    this.loading = false;
+                    this.error = '';
+                    this.textContent = '';
+                    this.blobUrls = [];
+                    this.officeLoadCount = 0;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
